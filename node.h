@@ -15,10 +15,10 @@ using std::unordered_map;
 
 class Node {
 public:
-    string name;
+    intg name;
 
 public:
-    Node(string s) : name(s){};
+    Node(intg s) : name(s){};
 };
 
 class FPGANode : public Node {
@@ -27,7 +27,7 @@ public:
     unordered_map<intg, set<FPGANode *>> S_hat;
 
 public:
-    FPGANode(string s, intg c) : Node(s), capacity(c) {}
+    FPGANode(intg s, intg c) : Node(s), capacity(c) {}
 };
 
 class CircuitNode : public Node {
@@ -40,7 +40,7 @@ public:
     set<CircuitNode *> S;  // only for fixed node.
 
 public:
-    CircuitNode(string s) : Node(s) {
+    CircuitNode(intg s) : Node(s) {
         fixed = false;
         fpga_node = nullptr;
     }

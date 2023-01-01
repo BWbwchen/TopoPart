@@ -7,7 +7,6 @@
 namespace topart {
 
 using std::fstream;
-using std::to_string;
 
 void DB::build_fpga_graph(intg num_vertex,
                           intg capacity,
@@ -15,7 +14,7 @@ void DB::build_fpga_graph(intg num_vertex,
     vector<vector<FPGANode *>> gg(num_vertex);
     vector<FPGANode *> fpga_node;
     for (int i = 0; i < num_vertex; ++i) {
-        fpga_node.emplace_back(new FPGANode(to_string(i), capacity));
+        fpga_node.emplace_back(new FPGANode(i, capacity));
     }
 
     for (auto &p : e) {
@@ -31,7 +30,7 @@ void DB::build_circuit_graph(intg num_vertex, vector<vector<intg>> &e) {
     vector<vector<CircuitNode *>> gg(num_vertex);
     vector<CircuitNode *> circuit_node;
     for (int i = 0; i < num_vertex; ++i) {
-        circuit_node.emplace_back(new CircuitNode(to_string(i)));
+        circuit_node.emplace_back(new CircuitNode(i));
     }
 
     for (int i = 0; i < num_vertex; ++i) {
