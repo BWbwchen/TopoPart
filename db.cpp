@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "log.h"
 #include "node.h"
 
 namespace topart {
@@ -65,6 +66,7 @@ void DB::calculate_candidate_fpga() {
         fpga_list[src]->S_hat[dist].emplace(fpga_list[dst]);
     });
     fpga.get_status();
+    log("FINISH fpga pre-calculation");
 
     // calculate circuit node's S set
     const auto &circuit_list = circuit.get_all_vertex();
@@ -79,6 +81,7 @@ void DB::calculate_candidate_fpga() {
                                  });
         }
     }
+    log("FINISH circuit fixed node pre-calculation");
     for (auto &c_node : circuit.get_all_vertex()) {
         if (c_node->is_fixed()) {
             c_node->cddt.emplace(c_node->fpga_node);
@@ -88,6 +91,7 @@ void DB::calculate_candidate_fpga() {
             }
         }
     }
+    log("FINISH circuit node pre-calculation");
     circuit.get_status();
 }
 

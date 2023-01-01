@@ -6,6 +6,8 @@
 #include <queue>
 #include <utility>
 
+#include "log.h"
+
 namespace topart {
 
 using std::cout;
@@ -71,17 +73,19 @@ intg Graph<T>::get_max_dist(intg start, Func f) {
 
 template <class T>
 void Graph<T>::get_status() {
+#ifdef LOG
     cout << "=============================================" << endl;
-    cout << "Max dist list: " << endl;
+    log("Max dist list: ");
     for (int i = 0; i < num_vertex; ++i) {
         cout << i << "'s max dist is: " << max_dist[i] << endl;
     }
 
     cout << "=============================================" << endl;
-    cout << "S-hat list: " << endl;
+    log("S-hat list: ");
     for (int i = 0; i < num_vertex; ++i) {
         cout << v[i]->status();
     }
+#endif
 }
 
 
