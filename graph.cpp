@@ -26,16 +26,18 @@ void Graph<T>::init(vector<T *> &vv, vector<vector<T *>> &gg) {
 }
 
 template <class T>
-void Graph<T>::calculate_max_dist() {
+void Graph<T>::calculate_max_dist(Func f) {
     max_dist = vector<intg>(num_vertex, 0);
     for (int i = 0; i < num_vertex; ++i) {
-        max_dist[i] = get_max_dist(i);
+        max_dist[i] = get_max_dist(i, f);
     }
 }
 
+
 template <class T>
-intg Graph<T>::get_max_dist(intg start) {
+intg Graph<T>::get_max_dist(intg start, Func f) {
     // bfs for max dist
+    // So we can calculate S hat value for each fpga
     vector<bool> done;
     done.resize(num_vertex, false);
 
@@ -50,6 +52,9 @@ intg Graph<T>::get_max_dist(intg start) {
         auto &id = top.first;
         auto &depth = top.second;
         q.pop();
+
+        if (depth > 0)
+            f(start, id, depth);
 
         ans = max(ans, depth);
 
@@ -66,8 +71,16 @@ intg Graph<T>::get_max_dist(intg start) {
 
 template <class T>
 void Graph<T>::get_status() {
+    cout << "=============================================" << endl;
+    cout << "Max dist list: " << endl;
     for (int i = 0; i < num_vertex; ++i) {
         cout << i << "'s max dist is: " << max_dist[i] << endl;
+    }
+
+    cout << "=============================================" << endl;
+    cout << "S-hat list: " << endl;
+    for (int i = 0; i < num_vertex; ++i) {
+        cout << v[i]->status();
     }
 }
 

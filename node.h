@@ -2,6 +2,7 @@
 #define NODE_H_
 
 #include <set>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
@@ -9,8 +10,10 @@
 
 namespace topart {
 
+using std::endl;
 using std::set;
 using std::string;
+using std::stringstream;
 using std::unordered_map;
 
 class Node {
@@ -19,6 +22,7 @@ public:
 
 public:
     Node(intg s) : name(s){};
+    virtual string status() = 0;
 };
 
 class FPGANode : public Node {
@@ -28,6 +32,19 @@ public:
 
 public:
     FPGANode(intg s, intg c) : Node(s), capacity(c) {}
+    virtual string status() override {
+        stringstream ss;
+        for (auto &p : S_hat) {
+            auto &dist = p.first;
+            auto &ff = p.second;
+            ss << "hat{S}(F" << name << ", " << dist << ") = ";
+            for (auto &s : ff) {
+                ss << s->name << ", ";
+            }
+            ss << endl;
+        }
+        return ss.str();
+    }
 };
 
 class CircuitNode : public Node {
@@ -50,6 +67,10 @@ public:
     }
 
     bool is_fixed() { return fixed; }
+    virtual string status() override {
+        // Do nothing
+        return "CircuitNode didn't need this right now.";
+    }
 };
 
 

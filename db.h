@@ -24,9 +24,9 @@ public:
                           vector<pair<intg, intg>> &e);
     void build_circuit_graph(intg num_vertex, vector<vector<intg>> &e);
     void set_fixed_circuit(vector<pair<intg, intg>> &e);
-    void build_db();
 
     // topart procedure
+    void calculate_candidate_fpga();
     void output(fstream &out);
 };
 

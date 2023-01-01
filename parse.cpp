@@ -52,8 +52,6 @@ void parse_input(DB &db, fstream &input) {
         fixed_circuit_to_fpga.emplace_back(make_pair(v, w));
     }
     db.set_fixed_circuit(fixed_circuit_to_fpga);
-
-    db.build_db();
 }
 
 

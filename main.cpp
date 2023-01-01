@@ -23,6 +23,7 @@ int main(int argc, char *argv[]) {
     topart::DB db;
     topart::parse_input(db, input);
 
+    db.calculate_candidate_fpga();
     // db.partition();
     // db.refine();
     db.output(output);

@@ -53,10 +53,20 @@ void DB::set_fixed_circuit(vector<pair<intg, intg>> &e) {
     }
 }
 
-void DB::build_db() {
-    fpga.calculate_max_dist();
+void DB::calculate_candidate_fpga() {
+    // calculate fpga maxDist and S-hat
+    const auto &fpga_list = fpga.get_all_vertex();
+    fpga.calculate_max_dist([&](intg src, intg dst, intg dist) {
+        for (int i = 1; i < dist; ++i) {
+            for (auto &s : fpga_list[src]->S_hat[i]) {
+                fpga_list[src]->S_hat[dist].emplace(s);
+            }
+        }
+        fpga_list[src]->S_hat[dist].emplace(fpga_list[dst]);
+    });
     fpga.get_status();
 }
+
 
 void DB::output(fstream &out) {
     const auto &circuit_vertex = circuit.get_all_vertex();
