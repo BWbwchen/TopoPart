@@ -57,14 +57,15 @@ void DB::set_fixed_circuit(vector<pair<intg, intg>> &e) {
 void DB::calculate_candidate_fpga() {
     // calculate fpga maxDist and S-hat
     const auto &fpga_list = fpga.get_all_vertex();
-    fpga.calculate_max_dist([&](intg src, intg dst, intg dist) {
+    auto insert_S_hat = [&](intg src, intg dst, intg dist) {
         for (int i = 1; i < dist; ++i) {
             for (auto &s : fpga_list[src]->S_hat[i]) {
                 fpga_list[src]->S_hat[dist].emplace(s);
             }
         }
         fpga_list[src]->S_hat[dist].emplace(fpga_list[dst]);
-    });
+    };
+    fpga.calculate_max_dist(insert_S_hat);
     fpga.get_status();
     log("FINISH fpga pre-calculation");
 
@@ -82,6 +83,7 @@ void DB::calculate_candidate_fpga() {
         }
     }
     log("FINISH circuit fixed node pre-calculation");
+
     for (auto &c_node : circuit.get_all_vertex()) {
         if (c_node->is_fixed()) {
             c_node->cddt.emplace(c_node->fpga_node);
@@ -92,7 +94,10 @@ void DB::calculate_candidate_fpga() {
         }
     }
     log("FINISH circuit node pre-calculation");
+
     circuit.get_status();
+
+    // TODO:
 }
 
 
