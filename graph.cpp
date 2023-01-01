@@ -18,6 +18,7 @@ using std::queue;
 template <class T>
 void Graph<T>::init(vector<T *> &vv, vector<vector<T *>> &gg) {
     num_vertex = gg.size();
+    max_dist = vector<intg>(num_vertex, 0);
     v = vv;
     for (int i = 0; i < vv.size(); ++i) {
         v_map[vv[i]] = i;
@@ -27,7 +28,6 @@ void Graph<T>::init(vector<T *> &vv, vector<vector<T *>> &gg) {
 
 template <class T>
 void Graph<T>::calculate_max_dist(Func f) {
-    max_dist = vector<intg>(num_vertex, 0);
     for (int i = 0; i < num_vertex; ++i) {
         max_dist[i] = get_max_dist(i, f);
     }

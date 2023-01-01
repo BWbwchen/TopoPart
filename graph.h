@@ -28,13 +28,13 @@ public:
     vector<vector<T *>> g;
     vector<intg> max_dist;
 
-    intg get_max_dist(intg start, Func f);
 
 public:
     Graph() {}
     void init(vector<T *> &vv, vector<vector<T *>> &gg);
     vector<T *> get_all_vertex() { return v; }
     void calculate_max_dist(Func f);
+    intg get_max_dist(intg start, Func f);
 
     void get_status();
 };

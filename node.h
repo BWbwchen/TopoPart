@@ -68,8 +68,13 @@ public:
 
     bool is_fixed() { return fixed; }
     virtual string status() override {
-        // Do nothing
-        return "CircuitNode didn't need this right now.";
+        stringstream ss;
+        ss << "S(" << name << ") = ";
+        for (auto &p : S) {
+            ss << p->name << ", ";
+        }
+        ss << endl;
+        return ss.str();
     }
 };
 

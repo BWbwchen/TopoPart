@@ -65,6 +65,21 @@ void DB::calculate_candidate_fpga() {
         fpga_list[src]->S_hat[dist].emplace(fpga_list[dst]);
     });
     fpga.get_status();
+
+    // calculate circuit node's S set
+    const auto &circuit_list = circuit.get_all_vertex();
+    for (auto &c_node : circuit.get_all_vertex()) {
+        if (c_node->is_fixed()) {
+            auto &d = fpga.max_dist[c_node->fpga_node->name];
+            circuit.get_max_dist(c_node->name,
+                                 [&](intg src, intg dst, intg dist) {
+                                     if (dist < d) {
+                                         c_node->S.emplace(circuit_list[dst]);
+                                     }
+                                 });
+        }
+    }
+    circuit.get_status();
 }
 
 
