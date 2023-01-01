@@ -53,6 +53,11 @@ void DB::set_fixed_circuit(vector<pair<intg, intg>> &e) {
     }
 }
 
+void DB::build_db() {
+    fpga.calculate_max_dist();
+    fpga.get_status();
+}
+
 void DB::output(fstream &out) {
     const auto &circuit_vertex = circuit.get_all_vertex();
     for (auto &c : circuit_vertex) {
