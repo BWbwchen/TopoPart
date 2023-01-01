@@ -2,6 +2,7 @@
 #define DB_H
 
 #include <fstream>
+#include <queue>
 
 #include "graph.h"
 #include "node.h"
@@ -9,11 +10,17 @@
 namespace topart {
 
 using std::fstream;
+using std::queue;
 
 class DB {
 public:
     Graph<FPGANode> fpga;
     Graph<CircuitNode> circuit;
+
+    // topart procedure - algorithm 1
+    void cal_circuit_candidate(
+        queue<pair<intg, intg>> Q,
+        unordered_map<intg, unordered_map<intg, intg>> circuit_node_s_dist);
 
 public:
     DB() {}

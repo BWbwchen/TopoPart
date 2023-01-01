@@ -35,6 +35,7 @@ public:
     vector<T *> get_all_vertex() { return v; }
     void calculate_max_dist(Func f);
     intg get_max_dist(intg start, Func f);
+    T *get_vertex(intg i);
 
     void get_status();
 };

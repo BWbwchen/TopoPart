@@ -1,6 +1,7 @@
 #include "graph.h"
 
 #include <algorithm>
+#include <cassert>
 #include <iostream>
 #include <limits>
 #include <queue>
@@ -35,6 +36,11 @@ void Graph<T>::calculate_max_dist(Func f) {
     }
 }
 
+template <class T>
+T *Graph<T>::get_vertex(intg i) {
+    assert(i < v.size());
+    return v[i];
+}
 
 template <class T>
 intg Graph<T>::get_max_dist(intg start, Func f) {
@@ -85,6 +91,7 @@ void Graph<T>::get_status() {
     for (int i = 0; i < num_vertex; ++i) {
         cout << v[i]->status();
     }
+    cout << std::flush;
 #endif
 }
 
