@@ -1,0 +1,14 @@
+*.tar.gz
+*.zip
+*.pdf
+bin/
+output/
+testcases
+HW2_grading/
+reference.cpp
+src/*.o
+src/*_report
+src/*.out
+src/report
+
+topart
