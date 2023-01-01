@@ -79,6 +79,15 @@ void DB::calculate_candidate_fpga() {
                                  });
         }
     }
+    for (auto &c_node : circuit.get_all_vertex()) {
+        if (c_node->is_fixed()) {
+            c_node->cddt.emplace(c_node->fpga_node);
+        } else {
+            for (auto &f : fpga_list) {
+                c_node->cddt.emplace(f);
+            }
+        }
+    }
     circuit.get_status();
 }
 
