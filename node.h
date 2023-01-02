@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "tensor.h"
 #include "type.h"
 
 namespace topart {
@@ -52,14 +53,17 @@ public:
     FPGANode *fpga_node;
 
     set<FPGANode *> cddt;  // candidate fpga for this node to be assigned to.
+    Tensor<intg> tsr_cddt;
 
     bool fixed;
     set<CircuitNode *> S;  // only for fixed node.
 
+
 public:
-    CircuitNode(intg s) : Node(s) {
+    CircuitNode(intg s, intg num_f) : Node(s) {
         fixed = false;
         fpga_node = nullptr;
+        tsr_cddt = Tensor<intg>(num_f);
     }
     void set_fixed(FPGANode *fn) {
         fixed = true;
@@ -76,6 +80,26 @@ public:
         ss << endl;
         return ss.str();
     }
+
+    void flush_tsr_to_cddt(vector<FPGANode *> &mapping) {
+        cddt.clear();
+        for (intg i = 0; i < tsr_cddt.v.size(); ++i) {
+            if (tsr_cddt.at(i) > 0)
+                cddt.emplace(mapping[i]);
+            else {
+                tsr_cddt.at(i) = 0;
+            }
+        }
+    }
+
+    void flush_cddt_to_tsr() {
+        tsr_cddt.clear();
+        for (auto &f : cddt) {
+            tsr_cddt.at(f->name) += 1;
+        }
+    }
+
+    bool assigned() { return is_fixed() || fpga_node != nullptr; }
 };
 
 

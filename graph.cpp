@@ -27,6 +27,10 @@ void Graph<T>::init(vector<T *> &vv, vector<vector<T *>> &gg) {
         v_map[vv[i]] = i;
     }
     g = gg;
+    g_set.resize(gg.size());
+    for (intg i = 0; i < g_set.size(); ++i) {
+        g_set[i] = unordered_set<T *>(gg[i].begin(), gg[i].end());
+    }
 }
 
 template <class T>

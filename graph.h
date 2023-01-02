@@ -4,6 +4,7 @@
 #include <functional>
 #include <limits>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -13,6 +14,7 @@ namespace topart {
 
 using std::pair;
 using std::unordered_map;
+using std::unordered_set;
 using std::vector;
 
 
@@ -26,6 +28,7 @@ public:
     vector<T *> v;
     unordered_map<T *, intg> v_map;
     vector<vector<T *>> g;
+    vector<unordered_set<T *>> g_set;
     vector<intg> max_dist;
 
 

@@ -9,11 +9,12 @@ endif
 CXXFLAGS = -std=c++11 -DLOG -O3 -march=native
 # CXXFLAGS = -std=c++11 -O3 -march=native
 # CXXFLAGS = -std=c++11 -pg -g  -Wall -Wextra -pedantic -DDEBUG
-# CXXFLAGS = -std=c++11 -g  -Wall -Wextra -pedantic -DDEBUG
+# CXXFLAGS = -std=c++11 -g -Wall -Wno-sign-compare -Wextra -pedantic -DDEBUG
 
 LIBS = db.o \
 		graph.o \
 		parse.o \
+		tensor.o \
 		log.o
 
 

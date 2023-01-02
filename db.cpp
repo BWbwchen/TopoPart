@@ -1,6 +1,7 @@
 #include "db.h"
 
 #include <algorithm>
+#include <cassert>
 #include <queue>
 #include <stdexcept>
 #include <string>
@@ -8,6 +9,7 @@
 
 #include "log.h"
 #include "node.h"
+#include "tensor.h"
 
 namespace topart {
 
@@ -15,8 +17,8 @@ using std::cout;
 using std::endl;
 using std::fstream;
 using std::make_pair;
+using std::pair;
 using std::queue;
-
 
 void DB::build_fpga_graph(intg num_vertex,
                           intg capacity,
@@ -40,7 +42,7 @@ void DB::build_circuit_graph(intg num_vertex, vector<vector<intg>> &e) {
     vector<vector<CircuitNode *>> gg(num_vertex);
     vector<CircuitNode *> circuit_node;
     for (int i = 0; i < num_vertex; ++i) {
-        circuit_node.emplace_back(new CircuitNode(i));
+        circuit_node.emplace_back(new CircuitNode(i, fpga.num_vertex));
     }
 
     for (int i = 0; i < num_vertex; ++i) {
@@ -128,8 +130,6 @@ void DB::cal_circuit_candidate(
         const auto &c_node = circuit.get_vertex(node_id);
         const auto &fpga_node = fpga.get_vertex(fpga_id);
 
-        auto d = fpga.max_dist[fpga_id];
-
         for (auto &neighbor : c_node->S) {
             if (neighbor->is_fixed())
                 continue;
@@ -174,6 +174,10 @@ void DB::cal_circuit_candidate(
         }
     }
 
+    for (auto &c : circuit.get_all_vertex()) {
+        c->flush_cddt_to_tsr();
+    }
+
 #ifdef LOG
     log("Cddt result: ");
     for (auto &c : circuit.get_all_vertex()) {
@@ -186,15 +190,154 @@ void DB::cal_circuit_candidate(
 #endif
 }
 
+intg DB::estimate_cut_increment(intg node_id, FPGANode *to_fpga) {
+    // TODO: calculate cut size increment
+    // check if fixed node in f is the neighbor of c
+    //     Yes, no cut size increment
+    //     No, +1
+    intg cut_size_increment = 0;
+    for (auto &neighbor : circuit.g[node_id]) {
+        if (neighbor->is_fixed() == false || neighbor->fpga_node != to_fpga)
+            cut_size_increment++;
+    }
+    return cut_size_increment;
+}
+
+void DB::partition() {
+    // NOTE: for algorithm 2, Q with size of cddt of node id, node id
+    // It need to be sorted.
+    auto Qcmp = [&](const intg &lhs, const intg &rhs) {
+        if (lhs == rhs)
+            return false;
+
+        intg lcs = circuit.get_vertex(lhs)->cddt.size();
+        intg rcs = circuit.get_vertex(rhs)->cddt.size();
+        if (lcs == rcs) {
+            return lhs < rhs;
+        }
+
+        return lcs < rcs;
+    };
+    using QType = set<intg, decltype(Qcmp)>;
+
+    // NOTE: for algorithm 2, R with increment of cut size if circuit was in
+    // fpga id, fpga id It need to be sorted.
+    using RType = set<pair<intg, intg>>;
+
+
+    QType Q(Qcmp);
+    vector<RType> R(circuit.num_vertex);
+    for (auto &c : circuit.get_all_vertex()) {
+        if (c->is_fixed())
+            continue;
+
+        c->fpga_node = nullptr;
+        Q.emplace(c->name);
+
+        for (auto &f : c->cddt) {
+            intg cut_size_increment = estimate_cut_increment(c->name, f);
+            R[c->name].emplace(make_pair(cut_size_increment, f->name));
+        }
+    }
+
+    Tensor<intg> v_cddt(fpga.num_vertex);
+    while (!Q.empty()) {
+        auto node_vj = *(Q.begin());
+        Q.erase(Q.begin());
+        if (circuit.get_vertex(node_vj)->assigned())
+            continue;
+
+        stringstream ss;
+        ss << "Deal with circuit node: " << node_vj << "("
+           << circuit.get_vertex(node_vj)->cddt.size() << ")\t place it to ";
+
+        assert(R[node_vj].size() > 0);
+        auto &r_top = *(R[node_vj].begin());
+        auto fpga_vj = r_top.second;
+        R[node_vj].erase(R[node_vj].begin());
+
+        ss << fpga_vj << "\t";
+
+        ss << " and Q size: " << Q.size()
+           << " and R size(poped): " << R[node_vj].size() << endl;
+
+        const auto &c = circuit.get_vertex(node_vj);
+        const auto &f = fpga.get_vertex(fpga_vj);
+
+        c->fpga_node = f;
+        v_cddt.clear();
+        // the fpga node, which didn't directly connect to f
+        for (auto &indirect_f : fpga.get_all_vertex()) {
+            if (fpga.g_set[f->name].count(indirect_f) <= 0)
+                v_cddt.at(indirect_f->name) += 1;
+        }
+        v_cddt.at(fpga_vj) = 0;
+
+        bool traceback = false;
+
+        for (auto &neighbor : circuit.g[c->name]) {
+            if (neighbor->assigned())
+                continue;
+
+            neighbor->tsr_cddt -= v_cddt;
+
+            if (neighbor->tsr_cddt.all_zero()) {
+                traceback = true;
+            }
+        }
+
+        if (traceback) {
+            c->cddt.erase(c->fpga_node);
+            c->flush_cddt_to_tsr();
+            c->fpga_node = nullptr;
+            Q.emplace(c->name);
+            for (auto &neighbor : circuit.g[c->name]) {
+                if (neighbor->assigned())
+                    continue;
+
+                neighbor->tsr_cddt += v_cddt;
+            }
+        } else {
+            for (auto &neighbor : circuit.g[c->name]) {
+                if (neighbor->assigned())
+                    continue;
+
+                ss << "\t\t";
+                ss << neighbor->name << "'s cddt: ";
+
+                // push into Q
+                assert(*(Q.find(neighbor->name)) == neighbor->name);
+                Q.erase(neighbor->name);
+
+                neighbor->flush_tsr_to_cddt(fpga.v);
+
+                R[neighbor->name].clear();
+                for (auto &cddt_fpga : neighbor->cddt) {
+                    ss << cddt_fpga->name << ", ";
+                    intg cut_size_increment =
+                        estimate_cut_increment(neighbor->name, cddt_fpga);
+                    R[neighbor->name].emplace(
+                        make_pair(cut_size_increment, cddt_fpga->name));
+                }
+                ss << endl;
+
+                Q.emplace(neighbor->name);
+            }
+        }
+        log(ss.str());
+
+        if (traceback)
+            log("Traceback");
+        else
+            log("Don't traceback");
+    }
+}
+
 void DB::output(fstream &out) {
     const auto &circuit_vertex = circuit.get_all_vertex();
     for (auto &c : circuit_vertex) {
-        if (c->is_fixed()) {
-            out << c->name << " " << c->fpga_node->name << std::endl;
-        } else {
-            out << c->name << " "
-                << "0" << std::endl;
-        }
+        assert(c->fpga_node != nullptr);
+        out << c->name << " " << c->fpga_node->name << std::endl;
     }
 }
 
