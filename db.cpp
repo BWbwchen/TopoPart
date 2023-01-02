@@ -190,17 +190,18 @@ void DB::cal_circuit_candidate(
 #endif
 }
 
-intg DB::estimate_cut_increment(intg node_id, FPGANode *to_fpga) {
+intg DB::estimate_cut_increment(intg node_id, intg to_fpga_id) {
     // TODO: calculate cut size increment
     // check if fixed node in f is the neighbor of c
     //     Yes, no cut size increment
     //     No, +1
     intg cut_size_increment = 0;
+    const auto &to_fpga = fpga.get_vertex(to_fpga_id);
     for (auto &neighbor : circuit.g[node_id]) {
-        if (neighbor->is_fixed() == false || neighbor->fpga_node != to_fpga)
+        if (neighbor->assigned() == false || neighbor->fpga_node != to_fpga)
             cut_size_increment++;
     }
-    return cut_size_increment;
+    return std::max(cut_size_increment, (intg) fpga.g_set[to_fpga_id].size());
 }
 
 void DB::partition() {
@@ -222,7 +223,7 @@ void DB::partition() {
 
     // NOTE: for algorithm 2, R with increment of cut size if circuit was in
     // fpga id, fpga id It need to be sorted.
-    using RType = set<pair<intg, intg>>;
+    using RType = set<pair<intg, intg>, std::greater<pair<intg, intg>>>;
 
 
     QType Q(Qcmp);
@@ -235,7 +236,7 @@ void DB::partition() {
         Q.emplace(c->name);
 
         for (auto &f : c->cddt) {
-            intg cut_size_increment = estimate_cut_increment(c->name, f);
+            intg cut_size_increment = estimate_cut_increment(c->name, f->name);
             R[c->name].emplace(make_pair(cut_size_increment, f->name));
         }
     }
@@ -315,7 +316,7 @@ void DB::partition() {
                 for (auto &cddt_fpga : neighbor->cddt) {
                     ss << cddt_fpga->name << ", ";
                     intg cut_size_increment =
-                        estimate_cut_increment(neighbor->name, cddt_fpga);
+                        estimate_cut_increment(neighbor->name, cddt_fpga->name);
                     R[neighbor->name].emplace(
                         make_pair(cut_size_increment, cddt_fpga->name));
                 }

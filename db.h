@@ -22,7 +22,7 @@ public:
         queue<pair<intg, intg>> Q,
         unordered_map<intg, unordered_map<intg, intg>> circuit_node_s_dist);
 
-    intg estimate_cut_increment(intg node_id, FPGANode *to_fpga);
+    intg estimate_cut_increment(intg node_id, intg to_fpga_id);
 
 public:
     DB() {}
