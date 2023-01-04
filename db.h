@@ -23,6 +23,7 @@ public:
         unordered_map<intg, unordered_map<intg, intg>> circuit_node_s_dist);
 
     intg estimate_cut_increment(intg node_id, intg to_fpga_id);
+    bool enough_space_for_neighbor(CircuitNode *c, FPGANode *f);
 
 public:
     DB() {}
@@ -37,6 +38,7 @@ public:
     // topart procedure
     void calculate_candidate_fpga();
     void partition();
+    void refine();
     void output(fstream &out);
 };
 

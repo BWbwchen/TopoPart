@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
 
     db.calculate_candidate_fpga();
     db.partition();
-    // db.refine();
+    db.refine();
     db.output(output);
 
     input.close();

@@ -29,10 +29,11 @@ public:
 class FPGANode : public Node {
 public:
     intg capacity;
+    intg usage;
     unordered_map<intg, set<FPGANode *>> S_hat;
 
 public:
-    FPGANode(intg s, intg c) : Node(s), capacity(c) {}
+    FPGANode(intg s, intg c) : Node(s), capacity(c), usage(0) {}
     virtual string status() override {
         stringstream ss;
         for (auto &p : S_hat) {
@@ -46,6 +47,10 @@ public:
         }
         return ss.str();
     }
+    void add_circuit() { usage++; }
+    void remove_circuit() { usage--; }
+    bool valid() { return usage < capacity; }
+    intg free_space() { return capacity - usage; }
 };
 
 class CircuitNode : public Node {
@@ -58,12 +63,15 @@ public:
     bool fixed;
     set<CircuitNode *> S;  // only for fixed node.
 
+    bool should_defer;
+
 
 public:
     CircuitNode(intg s, intg num_f) : Node(s) {
         fixed = false;
         fpga_node = nullptr;
         tsr_cddt = Tensor<intg>(num_f);
+        should_defer = false;
     }
     void set_fixed(FPGANode *fn) {
         fixed = true;
@@ -100,6 +108,7 @@ public:
     }
 
     bool assigned() { return is_fixed() || fpga_node != nullptr; }
+    void defer() { should_defer = true; }
 };
 
 

@@ -62,6 +62,7 @@ void DB::set_fixed_circuit(vector<pair<intg, intg>> &e) {
         auto &fixed_circuit = p.first;
         auto &ff = p.second;
         circuit_vertex[fixed_circuit]->set_fixed(fpga_vertex[ff]);
+        fpga_vertex[ff]->add_circuit();
     }
 }
 
@@ -201,7 +202,41 @@ intg DB::estimate_cut_increment(intg node_id, intg to_fpga_id) {
         if (neighbor->assigned() == false || neighbor->fpga_node != to_fpga)
             cut_size_increment++;
     }
+
+    const auto &c = circuit.get_vertex(node_id);
+    const auto &f = fpga.get_vertex(to_fpga_id);
+    intg demand = 1;
+    for (auto &c_neighbor : circuit.g[c->name]) {
+        if (c_neighbor->assigned())
+            continue;
+        demand++;
+    }
+
+    intg supply = f->free_space();
+    for (auto &f_neighbor : fpga.g[f->name]) {
+        supply += f_neighbor->free_space();
+    }
+    // return supply - demand;
+
     return std::max(cut_size_increment, (intg) fpga.g_set[to_fpga_id].size());
+    // return cut_size_increment;
+    // return fpga.g_set[to_fpga_id].size();
+    // return demand;
+}
+
+bool DB::enough_space_for_neighbor(CircuitNode *c, FPGANode *f) {
+    intg demand = 1;
+    for (auto &c_neighbor : circuit.g[c->name]) {
+        if (c_neighbor->assigned())
+            continue;
+        demand++;
+    }
+
+    intg supply = f->free_space();
+    for (auto &f_neighbor : fpga.g[f->name]) {
+        supply += f_neighbor->free_space();
+    }
+    return demand <= supply;
 }
 
 void DB::partition() {
@@ -252,20 +287,45 @@ void DB::partition() {
         ss << "Deal with circuit node: " << node_vj << "("
            << circuit.get_vertex(node_vj)->cddt.size() << ")\t place it to ";
 
+        if (R[node_vj].size() <= 0) {
+            circuit.get_vertex(node_vj)->defer();
+            continue;
+        }
         assert(R[node_vj].size() > 0);
-        auto &r_top = *(R[node_vj].begin());
+        auto r_top = *(R[node_vj].begin());
         auto fpga_vj = r_top.second;
         R[node_vj].erase(R[node_vj].begin());
 
-        ss << fpga_vj << "\t";
+        auto c = circuit.get_vertex(node_vj);
+        auto f = fpga.get_vertex(fpga_vj);
+
+        bool traceback = false;
+
+        // TODO: not only valid, also enough space for circuit node's neighbor
+        // while (f->valid() == false ||
+        //        enough_space_for_neighbor(c, f) == false) {
+        while (f->valid() == false) {
+            if (R[node_vj].size() <= 0) {
+                c->defer();
+                goto end;
+            }
+            assert(R[node_vj].size() > 0);
+            r_top = *(R[node_vj].begin());
+            fpga_vj = r_top.second;
+            f = fpga.get_vertex(fpga_vj);
+            R[node_vj].erase(R[node_vj].begin());
+        }
+        assert(f->valid());
+
+        ss << fpga_vj << "(" << f->usage << "/" << f->capacity << ")"
+           << "\t";
 
         ss << " and Q size: " << Q.size()
            << " and R size(poped): " << R[node_vj].size() << endl;
 
-        const auto &c = circuit.get_vertex(node_vj);
-        const auto &f = fpga.get_vertex(fpga_vj);
 
         c->fpga_node = f;
+        f->add_circuit();
         v_cddt.clear();
         // the fpga node, which didn't directly connect to f
         for (auto &indirect_f : fpga.get_all_vertex()) {
@@ -274,10 +334,9 @@ void DB::partition() {
         }
         v_cddt.at(fpga_vj) = 0;
 
-        bool traceback = false;
 
         for (auto &neighbor : circuit.g[c->name]) {
-            if (neighbor->assigned())
+            if (neighbor->assigned() || neighbor->should_defer)
                 continue;
 
             neighbor->tsr_cddt -= v_cddt;
@@ -291,6 +350,7 @@ void DB::partition() {
             c->cddt.erase(c->fpga_node);
             c->flush_cddt_to_tsr();
             c->fpga_node = nullptr;
+            f->remove_circuit();
             Q.emplace(c->name);
             for (auto &neighbor : circuit.g[c->name]) {
                 if (neighbor->assigned())
@@ -300,7 +360,7 @@ void DB::partition() {
             }
         } else {
             for (auto &neighbor : circuit.g[c->name]) {
-                if (neighbor->assigned())
+                if (neighbor->assigned() || neighbor->should_defer)
                     continue;
 
                 ss << "\t\t";
@@ -325,6 +385,7 @@ void DB::partition() {
                 Q.emplace(neighbor->name);
             }
         }
+    end:
         log(ss.str());
 
         if (traceback)
@@ -334,12 +395,75 @@ void DB::partition() {
     }
 }
 
+void DB::refine() {
+    cout << "Start refine." << endl;
+    // make the un-assigned node assigned
+
+    intg need_refine = 0;
+    intg force_assign = 0;
+    intg fpga_id = 0;
+    for (auto &c : circuit.get_all_vertex()) {
+        if (c->assigned())
+            continue;
+
+        need_refine++;
+        c->fpga_node = nullptr;
+        c->should_defer = false;
+
+        c->cddt.clear();
+        for (auto &neighbor : circuit.g[c->name]) {
+            if (neighbor->assigned() && neighbor->fpga_node->valid())
+                c->cddt.emplace(neighbor->fpga_node);
+        }
+
+        if (c->cddt.size() == 0) {
+            // greedy assign.
+            // TODO: can I place the nearest fpga node?
+            force_assign++;
+            while (fpga_id < fpga.num_vertex) {
+                const auto &tmp_f = fpga.get_vertex(fpga_id);
+                if (tmp_f->valid()) {
+                    tmp_f->add_circuit();
+                    c->fpga_node = tmp_f;
+                    break;
+                }
+                fpga_id++;
+            }
+        } else {
+            for (auto &tmp_f : c->cddt) {
+                if (tmp_f->valid()) {
+                    tmp_f->add_circuit();
+                    c->fpga_node = tmp_f;
+                    break;
+                }
+            }
+        }
+        // assert(c->cddt.size() > 0);
+    }
+
+    if (need_refine)
+        cout << "[BW] Refine " << need_refine << "/" << circuit.num_vertex
+             << " circuit nodes. with force assigned: " << force_assign << endl;
+}
+
+
 void DB::output(fstream &out) {
     const auto &circuit_vertex = circuit.get_all_vertex();
+    intg not_set = 0;
     for (auto &c : circuit_vertex) {
-        assert(c->fpga_node != nullptr);
+        // assert(c->fpga_node != nullptr);
+        if (c->fpga_node == nullptr) {
+            not_set++;
+            continue;
+        }
         out << c->name << " " << c->fpga_node->name << std::endl;
     }
+    if (not_set == 0)
+        return;
+    cout << "=========================================================" << endl;
+    cout << "[BW] Total Not Set: " << not_set << "/" << circuit.num_vertex
+         << endl;
+    cout << "=========================================================" << endl;
 }
 
 }  // namespace topart
