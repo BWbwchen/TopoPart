@@ -41,7 +41,6 @@ void parse_input(DB &db, fstream &input) {
         ss >> v;
         while (ss >> w) {
             g_circuit[v].emplace_back(w);
-            g_circuit[w].emplace_back(v);
         }
     }
     db.build_circuit_graph(total_circuit_node, g_circuit);

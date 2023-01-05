@@ -49,6 +49,7 @@ void DB::build_circuit_graph(intg num_vertex, vector<vector<intg>> &e) {
         auto &neighbor_list = e[i];
         for (auto &neighbor : neighbor_list) {
             gg[i].emplace_back(circuit_node[neighbor]);
+            gg[neighbor].emplace_back(circuit_node[i]);
         }
     }
 
