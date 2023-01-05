@@ -358,6 +358,13 @@ void DB::partition() {
 
                 neighbor->tsr_cddt += v_cddt;
             }
+            R[c->name].clear();
+            for (auto &cddt_fpga : c->cddt) {
+                intg cut_size_increment =
+                    estimate_cut_increment(c->name, cddt_fpga->name);
+                R[c->name].emplace(
+                    make_pair(cut_size_increment, cddt_fpga->name));
+            }
         } else {
             for (auto &neighbor : circuit.g[c->name]) {
                 if (neighbor->assigned() || neighbor->should_defer)
