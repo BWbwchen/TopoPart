@@ -218,10 +218,10 @@ intg DB::estimate_cut_increment(intg node_id, intg to_fpga_id) {
     }
     // return supply - demand;
 
-    return std::max(cut_size_increment, (intg) fpga.g_set[to_fpga_id].size());
-    // return cut_size_increment;
-    // return fpga.g_set[to_fpga_id].size();
-    // return demand;
+    return supply;
+    // return std::max(cut_size_increment, (intg)
+    // fpga.g_set[to_fpga_id].size()); return cut_size_increment; return
+    // fpga.g_set[to_fpga_id].size(); return demand;
 }
 
 bool DB::enough_space_for_neighbor(CircuitNode *c, FPGANode *f) {
