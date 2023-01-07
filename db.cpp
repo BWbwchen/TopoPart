@@ -208,21 +208,6 @@ void DB::cal_circuit_candidate(
 #endif
 }
 
-bool DB::enough_space_for_neighbor(CircuitNode *c, FPGANode *f) {
-    intg demand = 1;
-    for (auto &c_neighbor : circuit.g[c->name]) {
-        if (c_neighbor->assigned())
-            continue;
-        demand++;
-    }
-
-    intg supply = f->free_space();
-    for (auto &f_neighbor : fpga.g[f->name]) {
-        supply += f_neighbor->free_space();
-    }
-    return demand <= supply;
-}
-
 void DB::calculate_fpga_neighbor_free_space(intg fpga_id) {
     auto &f_usage = fpga_neighbor_free_space[fpga_id];
     const auto &f = fpga.get_vertex(fpga_id);
@@ -386,7 +371,6 @@ void DB::partition() {
                 Q.erase(neighbor->name);
 
                 neighbor->flush_tsr_to_cddt(fpga.v);
-                ss << endl;
 
                 Q.emplace(neighbor->name);
             }
