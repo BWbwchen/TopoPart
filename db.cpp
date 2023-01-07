@@ -260,7 +260,9 @@ void DB::partition() {
 
         auto ll = (l_cost + fl->usage / hp);
         auto rr = (r_cost + fr->usage / hp);
-
+        if (ll == rr) {
+            return l_cost <= r_cost;
+        }
         return (l_cost + fl->usage / hp) <= (r_cost + fr->usage / hp);
     };
     using RType = set<pair<intg, intg>, decltype(Rcmp)>;
