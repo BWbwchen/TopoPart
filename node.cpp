@@ -22,6 +22,14 @@ void CircuitNode::add_fpga(FPGANode *fn) {
     }
 }
 
+void CircuitNode::remove_fpga() {
+    for (auto &n : nets) {
+        n->remove_fpga(this->fpga_node);
+    }
+
+    fpga_node = nullptr;
+}
+
 void CircuitNode::flush_tsr_to_cddt(vector<FPGANode *> &mapping) {
     cddt.clear();
     for (intg i = 0; i < tsr_cddt.v.size(); ++i) {
@@ -50,6 +58,25 @@ void CircuitNode::calculate_cut_increment(
             n->net_cell.size() * n->estimate_increase_cut_size(if_f);
     }
     cut_increment_map[if_f->name] = cut_increment;
+}
+
+intg CircuitNode::try_move() {
+    intg esti_dec = 0;
+    for (auto &n : nets) {
+        if (n->try_move(this->fpga_node))
+            esti_dec++;
+    }
+
+    return esti_dec != 0;
+}
+
+intg CircuitNode::try_move(FPGANode *f) {
+    intg dec = 0;
+    for (auto &n : nets) {
+        dec += n->estimate_increase_cut_size_refine(f);
+    }
+
+    return dec;
 }
 
 

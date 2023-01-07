@@ -441,22 +441,60 @@ void DB::refine() {
     if (need_refine)
         cout << "[BW] Refine " << need_refine << "/" << circuit.num_vertex
              << " circuit nodes. with force assigned: " << force_assign << endl;
+
+
+    output_loss();
+    // Refine with move-based. We try to move the boundary node, which is the
+    // node that in the FPGA node that different with other node in the same
+    // net.
+    intg total_dec = 0;
+    intg total_topo_vio = 0;
+    intg tmp_dec = std::numeric_limits<intg>::max();
+    FPGANode *refine_f = nullptr;
+    for (auto &c : circuit.get_all_vertex()) {
+        if (c->is_fixed() || c->try_move() == false)
+            continue;
+
+        tmp_dec = std::numeric_limits<intg>::max();
+        refine_f = nullptr;
+        for (auto &neighbor : circuit.g_set[c->name]) {
+            auto &nf = neighbor->fpga_node;
+            if (nf == c->fpga_node || nf->valid() == false)
+                continue;
+
+            intg td = c->try_move(nf);
+            if (tmp_dec > td) {
+                tmp_dec = td;
+                refine_f = nf;
+            }
+        }
+        if (refine_f == nullptr)
+            continue;
+
+        intg topology_violation_increase = 0;
+        for (auto &neighbor : circuit.g_set[c->name]) {
+            if (fpga.g_set[refine_f->name].count(
+                    fpga.get_vertex(neighbor->fpga_node->name)) <= 0 &&
+                refine_f != neighbor->fpga_node)
+                topology_violation_increase += 2;
+        }
+
+        if (tmp_dec + topology_violation_increase < 0) {
+            c->fpga_node->remove_circuit();
+            c->remove_fpga();
+            c->add_fpga(refine_f);
+            refine_f->add_circuit();
+            total_dec += tmp_dec;
+            total_topo_vio += topology_violation_increase;
+        }
+    }
+    cout << "[BW] dec: " << total_dec << endl;
+    cout << "[BW] topo vio: " << total_topo_vio << endl;
+    output_loss();
 }
 
-
-void DB::output(fstream &out) {
+void DB::output_loss() {
     const auto &circuit_vertex = circuit.get_all_vertex();
-    intg not_set = 0;
-    for (auto &c : circuit_vertex) {
-        // assert(c->fpga_node != nullptr);
-        if (c->fpga_node == nullptr) {
-            not_set++;
-            continue;
-        }
-        out << c->name << " " << c->fpga_node->name << std::endl;
-    }
-
-#ifdef LOG
     intg topology_cost = 0;
     for (auto &n : nets) {
         topology_cost += n->cost();
@@ -477,6 +515,22 @@ void DB::output(fstream &out) {
     cout << "\tPenalty Cost is: " << penalty << endl;
     cout << "\tTOTAL Cost is: " << topology_cost + penalty << endl;
     cout << "=========================================================" << endl;
+}
+
+void DB::output(fstream &out) {
+    const auto &circuit_vertex = circuit.get_all_vertex();
+    intg not_set = 0;
+    for (auto &c : circuit_vertex) {
+        // assert(c->fpga_node != nullptr);
+        if (c->fpga_node == nullptr) {
+            not_set++;
+            continue;
+        }
+        out << c->name << " " << c->fpga_node->name << std::endl;
+    }
+
+#ifdef LOG
+    output_loss();
 #endif
 
     if (not_set == 0)

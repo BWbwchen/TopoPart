@@ -28,6 +28,7 @@ public:
     bool enough_space_for_neighbor(CircuitNode *c, FPGANode *f);
 
     void calculate_fpga_neighbor_free_space(intg fpga_id);
+    void output_loss();
 
 public:
     DB() {}

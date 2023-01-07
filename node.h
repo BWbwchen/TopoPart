@@ -85,6 +85,7 @@ public:
     void set_fixed(FPGANode *fn);
     void add_net(Net *n) { nets.emplace(n); }
     void add_fpga(FPGANode *fn);
+    void remove_fpga();
 
     void reset_cut_increment() { cut_increment_map.clear(); }
     void calculate_cut_increment(FPGANode *if_f,
@@ -106,6 +107,9 @@ public:
 
     bool assigned() { return is_fixed() || fpga_node != nullptr; }
     void defer() { should_defer = true; }
+
+    intg try_move();
+    intg try_move(FPGANode *f);
 };
 
 
@@ -113,16 +117,34 @@ class Net {
 public:
     unordered_set<CircuitNode *> net_cell;
     unordered_set<FPGANode *> used_fpga_node;
+    unordered_map<intg, intg> used_fpga_node_count;
 
 public:
     Net(unordered_set<CircuitNode *> nc) : net_cell(nc){};
-    void add_fpga(FPGANode *f) { used_fpga_node.emplace(f); }
+    void add_fpga(FPGANode *f) {
+        used_fpga_node.emplace(f);
+        if (used_fpga_node_count.count(f->name) <= 0) {
+            used_fpga_node_count[f->name] = 1;
+        } else {
+            used_fpga_node_count[f->name]++;
+        }
+    }
+    void remove_fpga(FPGANode *f) {
+        if (used_fpga_node_count[f->name] == 1) {
+            used_fpga_node_count.erase(f->name);
+            used_fpga_node.erase(f);
+        } else {
+            used_fpga_node_count[f->name] -= 1;
+        }
+    }
     intg estimate_increase_cut_size(FPGANode *if_f);
+    intg estimate_increase_cut_size_refine(FPGANode *if_f);
     intg cost() {
         if (used_fpga_node.size() <= 1)
             return 0;
         return used_fpga_node.size();
     }
+    bool try_move(FPGANode *f);
 };
 
 
