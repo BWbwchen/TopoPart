@@ -25,6 +25,7 @@ using std::queue;
 void DB::build_fpga_graph(intg num_vertex,
                           intg capacity,
                           vector<pair<intg, intg>> &e) {
+    fpga_neighbor_free_space.resize(num_vertex, 0);
     vector<vector<FPGANode *>> gg(num_vertex);
     vector<FPGANode *> fpga_node;
     for (int i = 0; i < num_vertex; ++i) {
@@ -222,6 +223,16 @@ bool DB::enough_space_for_neighbor(CircuitNode *c, FPGANode *f) {
     return demand <= supply;
 }
 
+void DB::calculate_fpga_neighbor_free_space(intg fpga_id) {
+    auto &f_usage = fpga_neighbor_free_space[fpga_id];
+    const auto &f = fpga.get_vertex(fpga_id);
+
+    f_usage = f->free_space();
+    for (auto &f_neighbor : fpga.g[f->name]) {
+        f_usage += f_neighbor->free_space();
+    }
+}
+
 void DB::partition() {
     // NOTE: for algorithm 2, Q with size of cddt of node id, node id
     // It need to be sorted.
@@ -258,14 +269,8 @@ void DB::partition() {
         auto l_cost = cc->cut_increment_map[lhs.second];
         auto r_cost = cc->cut_increment_map[rhs.second];
 
-        intg fl_usage = fl->free_space();
-        for (auto &f_neighbor : fpga.g[fl->name]) {
-            fl_usage += f_neighbor->free_space();
-        }
-        intg fr_usage = fr->free_space();
-        for (auto &f_neighbor : fpga.g[fr->name]) {
-            fr_usage += f_neighbor->free_space();
-        }
+        intg fl_usage = fpga_neighbor_free_space[lhs.second];
+        intg fr_usage = fpga_neighbor_free_space[rhs.second];
 
         auto ll = (l_cost + fl->usage / hp);
         auto rr = (r_cost + fr->usage / hp);
@@ -307,6 +312,7 @@ void DB::partition() {
         R[c->name].clear();
         c->reset_cut_increment();
         for (auto &ff : c->cddt) {
+            calculate_fpga_neighbor_free_space(ff->name);
             c->calculate_cut_increment(ff, circuit.g_set[c->name]);
             R[c->name].emplace(make_pair(c->name, ff->name));
         }

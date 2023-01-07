@@ -17,6 +17,7 @@ public:
     Graph<FPGANode> fpga;
     Graph<CircuitNode> circuit;
     vector<Net *> nets;
+    vector<intg> fpga_neighbor_free_space;
 
     // topart procedure - algorithm 1
     void cal_circuit_candidate(
@@ -25,6 +26,8 @@ public:
 
     intg estimate_cut_increment(intg node_id, intg to_fpga_id);
     bool enough_space_for_neighbor(CircuitNode *c, FPGANode *f);
+
+    void calculate_fpga_neighbor_free_space(intg fpga_id);
 
 public:
     DB() {}
