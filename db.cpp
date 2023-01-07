@@ -300,7 +300,6 @@ void DB::partition() {
            << ")\t place it to ";
 
         if (c->cddt.size() == 0) {
-            cout << "No cddt defer" << endl;
             c->defer();
             continue;
         }
@@ -319,7 +318,6 @@ void DB::partition() {
         intg fpga_vj;
         do {
             if (R[node_vj].size() <= 0) {
-                cout << "Defer here with cddt size: " << c->cddt.size() << endl;
                 c->defer();
                 goto end;
             }
