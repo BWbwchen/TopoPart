@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <limits>
 #include <queue>
 #include <stdexcept>
@@ -240,6 +241,14 @@ void DB::partition() {
 
     // NOTE: for algorithm 2, R with element pair:
     // node_id, fpga_id
+    intg hp = 0;
+    intg capacity_digit = log10(fpga.get_vertex(0)->capacity) + 1;
+    intg threshold = 2;
+    if (capacity_digit <= threshold) {
+        hp = 1;
+    } else {
+        hp = 2 * (intg) pow(10, capacity_digit - threshold);
+    }
     auto Rcmp = [&](const pair<intg, intg> &lhs, const pair<intg, intg> &rhs) {
         const auto &cc = circuit.get_vertex(lhs.first);
         const auto &fl = fpga.get_vertex(lhs.second);
@@ -248,7 +257,11 @@ void DB::partition() {
         assert(cc->cut_increment_map.count(rhs.second));
         auto l_cost = cc->cut_increment_map[lhs.second];
         auto r_cost = cc->cut_increment_map[rhs.second];
-        return l_cost <= r_cost;
+
+        auto ll = (l_cost + fl->usage / hp);
+        auto rr = (r_cost + fr->usage / hp);
+
+        return (l_cost + fl->usage / hp) <= (r_cost + fr->usage / hp);
     };
     using RType = set<pair<intg, intg>, decltype(Rcmp)>;
 
@@ -420,6 +433,8 @@ void DB::refine() {
             assert(best_f != nullptr);
             c->add_fpga(best_f);
             best_f->add_circuit();
+            // c->add_fpga(*(c->cddt.begin()));
+            // (*(c->cddt.begin()))->add_circuit();
         }
         // assert(c->cddt.size() > 0);
     }
