@@ -16,6 +16,7 @@ class DB {
 public:
     Graph<FPGANode> fpga;
     Graph<CircuitNode> circuit;
+    vector<Net *> nets;
 
     // topart procedure - algorithm 1
     void cal_circuit_candidate(

@@ -1,10 +1,12 @@
 #ifndef NODE_H_
 #define NODE_H_
 
+#include <algorithm>
 #include <set>
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "tensor.h"
 #include "type.h"
@@ -16,6 +18,9 @@ using std::set;
 using std::string;
 using std::stringstream;
 using std::unordered_map;
+using std::unordered_set;
+
+class Net;
 
 class Node {
 public:
@@ -63,6 +68,9 @@ public:
     bool fixed;
     set<CircuitNode *> S;  // only for fixed node.
 
+    unordered_set<Net *> nets;
+    unordered_map<intg, intg> cut_increment_map;
+
     bool should_defer;
 
 
@@ -72,11 +80,15 @@ public:
         fpga_node = nullptr;
         tsr_cddt = Tensor<intg>(num_f);
         should_defer = false;
+        cut_increment_map.clear();
     }
-    void set_fixed(FPGANode *fn) {
-        fixed = true;
-        fpga_node = fn;
-    }
+    void set_fixed(FPGANode *fn);
+    void add_net(Net *n) { nets.emplace(n); }
+    void add_fpga(FPGANode *fn);
+
+    void reset_cut_increment() { cut_increment_map.clear(); }
+    void calculate_cut_increment(FPGANode *if_f,
+                                 unordered_set<CircuitNode *> neighbor_lists);
 
     bool is_fixed() { return fixed; }
     virtual string status() override {
@@ -89,26 +101,28 @@ public:
         return ss.str();
     }
 
-    void flush_tsr_to_cddt(vector<FPGANode *> &mapping) {
-        cddt.clear();
-        for (intg i = 0; i < tsr_cddt.v.size(); ++i) {
-            if (tsr_cddt.at(i) > 0)
-                cddt.emplace(mapping[i]);
-            else {
-                tsr_cddt.at(i) = 0;
-            }
-        }
-    }
-
-    void flush_cddt_to_tsr() {
-        tsr_cddt.clear();
-        for (auto &f : cddt) {
-            tsr_cddt.at(f->name) += 1;
-        }
-    }
+    void flush_tsr_to_cddt(vector<FPGANode *> &mapping);
+    void flush_cddt_to_tsr();
 
     bool assigned() { return is_fixed() || fpga_node != nullptr; }
     void defer() { should_defer = true; }
+};
+
+
+class Net {
+public:
+    unordered_set<CircuitNode *> net_cell;
+    unordered_set<FPGANode *> used_fpga_node;
+
+public:
+    Net(unordered_set<CircuitNode *> nc) : net_cell(nc){};
+    void add_fpga(FPGANode *f) { used_fpga_node.emplace(f); }
+    intg estimate_increase_cut_size(FPGANode *if_f);
+    intg cost() {
+        if (used_fpga_node.size() <= 1)
+            return 0;
+        return used_fpga_node.size();
+    }
 };
 
 

@@ -34,14 +34,16 @@ void parse_input(DB &db, fstream &input) {
     getline(input, s);
 
     // Circuit
-    vector<vector<intg>> g_circuit(total_circuit_node);
+    vector<vector<intg>> g_circuit;
+    vector<intg> tmp;
     for (int i = 0; i < num_net; ++i) {
         getline(input, s);
         stringstream ss(s);
-        ss >> v;
+        tmp.clear();
         while (ss >> w) {
-            g_circuit[v].emplace_back(w);
+            tmp.emplace_back(w);
         }
+        g_circuit.push_back(tmp);
     }
     db.build_circuit_graph(total_circuit_node, g_circuit);
 

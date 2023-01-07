@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <limits>
 #include <queue>
 #include <stdexcept>
 #include <string>
@@ -45,11 +46,28 @@ void DB::build_circuit_graph(intg num_vertex, vector<vector<intg>> &e) {
         circuit_node.emplace_back(new CircuitNode(i, fpga.num_vertex));
     }
 
-    for (int i = 0; i < num_vertex; ++i) {
-        auto &neighbor_list = e[i];
-        for (auto &neighbor : neighbor_list) {
-            gg[i].emplace_back(circuit_node[neighbor]);
-            gg[neighbor].emplace_back(circuit_node[i]);
+    // Build Net and graph
+    nets.clear();
+    unordered_set<CircuitNode *> us;
+
+    for (auto &n : e) {
+        intg start_v = n[0];
+
+        unordered_set<CircuitNode *> us;
+        us.clear();
+        us.emplace(circuit_node[start_v]);
+
+        for (int i = 1; i < n.size(); ++i) {
+            auto &neighbor = n[i];
+            us.emplace(circuit_node[neighbor]);
+            gg[start_v].emplace_back(circuit_node[neighbor]);
+            gg[neighbor].emplace_back(circuit_node[start_v]);
+        }
+        nets.push_back(new Net(us));
+        circuit_node[start_v]->add_net(nets.back());
+        for (int i = 1; i < n.size(); ++i) {
+            auto &neighbor = n[i];
+            circuit_node[neighbor]->add_net(nets.back());
         }
     }
 
@@ -163,10 +181,6 @@ void DB::cal_circuit_candidate(
                 circuit.get_max_dist(neighbor->name,
                                      [&](intg src, intg dst, intg dist) {
                                          circuit_node_s_dist[src][dst] = dist;
-                                         // if (dist < d) {
-                                         //     neighbor->S.emplace(circuit.get_vertex(dst));
-                                         // }
-                                         // neighbor->S.emplace(circuit.get_vertex(src));
                                      });
             }
 
@@ -190,39 +204,6 @@ void DB::cal_circuit_candidate(
         cout << endl;
     }
 #endif
-}
-
-intg DB::estimate_cut_increment(intg node_id, intg to_fpga_id) {
-    // TODO: calculate cut size increment
-    // check if fixed node in f is the neighbor of c
-    //     Yes, no cut size increment
-    //     No, +1
-    intg cut_size_increment = 0;
-    const auto &to_fpga = fpga.get_vertex(to_fpga_id);
-    for (auto &neighbor : circuit.g[node_id]) {
-        if (neighbor->assigned() == false || neighbor->fpga_node != to_fpga)
-            cut_size_increment++;
-    }
-
-    const auto &c = circuit.get_vertex(node_id);
-    const auto &f = fpga.get_vertex(to_fpga_id);
-    intg demand = 1;
-    for (auto &c_neighbor : circuit.g[c->name]) {
-        if (c_neighbor->assigned())
-            continue;
-        demand++;
-    }
-
-    intg supply = f->free_space();
-    for (auto &f_neighbor : fpga.g[f->name]) {
-        supply += f_neighbor->free_space();
-    }
-    // return supply - demand;
-
-    return supply;
-    // return std::max(cut_size_increment, (intg)
-    // fpga.g_set[to_fpga_id].size()); return cut_size_increment; return
-    // fpga.g_set[to_fpga_id].size(); return demand;
 }
 
 bool DB::enough_space_for_neighbor(CircuitNode *c, FPGANode *f) {
@@ -257,65 +238,73 @@ void DB::partition() {
     };
     using QType = set<intg, decltype(Qcmp)>;
 
-    // NOTE: for algorithm 2, R with increment of cut size if circuit was in
-    // fpga id, fpga id It need to be sorted.
-    using RType = set<pair<intg, intg>, std::greater<pair<intg, intg>>>;
+    // NOTE: for algorithm 2, R with element pair:
+    // node_id, fpga_id
+    auto Rcmp = [&](const pair<intg, intg> &lhs, const pair<intg, intg> &rhs) {
+        const auto &cc = circuit.get_vertex(lhs.first);
+        const auto &fl = fpga.get_vertex(lhs.second);
+        const auto &fr = fpga.get_vertex(rhs.second);
+        assert(cc->cut_increment_map.count(lhs.second));
+        assert(cc->cut_increment_map.count(rhs.second));
+        auto l_cost = cc->cut_increment_map[lhs.second];
+        auto r_cost = cc->cut_increment_map[rhs.second];
+        return l_cost <= r_cost;
+    };
+    using RType = set<pair<intg, intg>, decltype(Rcmp)>;
 
 
     QType Q(Qcmp);
-    vector<RType> R(circuit.num_vertex);
+    vector<RType> R(circuit.num_vertex, RType(Rcmp));
     for (auto &c : circuit.get_all_vertex()) {
         if (c->is_fixed())
             continue;
 
         c->fpga_node = nullptr;
         Q.emplace(c->name);
-
-        for (auto &f : c->cddt) {
-            intg cut_size_increment = estimate_cut_increment(c->name, f->name);
-            R[c->name].emplace(make_pair(cut_size_increment, f->name));
-        }
     }
 
     Tensor<intg> v_cddt(fpga.num_vertex);
     while (!Q.empty()) {
         auto node_vj = *(Q.begin());
         Q.erase(Q.begin());
-        if (circuit.get_vertex(node_vj)->assigned())
+        auto c = circuit.get_vertex(node_vj);
+        if (c->assigned())
             continue;
 
         stringstream ss;
-        ss << "Deal with circuit node: " << node_vj << "("
-           << circuit.get_vertex(node_vj)->cddt.size() << ")\t place it to ";
+        ss << "Deal with circuit node: " << node_vj << "(" << c->cddt.size()
+           << ")\t place it to ";
 
-        if (R[node_vj].size() <= 0) {
-            circuit.get_vertex(node_vj)->defer();
+        if (c->cddt.size() == 0) {
+            cout << "No cddt defer" << endl;
+            c->defer();
             continue;
         }
-        assert(R[node_vj].size() > 0);
-        auto r_top = *(R[node_vj].begin());
-        auto fpga_vj = r_top.second;
-        R[node_vj].erase(R[node_vj].begin());
 
-        auto c = circuit.get_vertex(node_vj);
-        auto f = fpga.get_vertex(fpga_vj);
+        R[c->name].clear();
+        c->reset_cut_increment();
+        for (auto &ff : c->cddt) {
+            c->calculate_cut_increment(ff, circuit.g_set[c->name]);
+            R[c->name].emplace(make_pair(c->name, ff->name));
+        }
 
+        assert(node_vj == c->name);
         bool traceback = false;
 
-        // TODO: not only valid, also enough space for circuit node's neighbor
-        // while (f->valid() == false ||
-        //        enough_space_for_neighbor(c, f) == false) {
-        while (f->valid() == false) {
+        FPGANode *f = nullptr;
+        intg fpga_vj;
+        do {
             if (R[node_vj].size() <= 0) {
+                cout << "Defer here with cddt size: " << c->cddt.size() << endl;
                 c->defer();
                 goto end;
             }
-            assert(R[node_vj].size() > 0);
-            r_top = *(R[node_vj].begin());
-            fpga_vj = r_top.second;
+
+            fpga_vj = (*(R[node_vj].begin())).second;
             f = fpga.get_vertex(fpga_vj);
             R[node_vj].erase(R[node_vj].begin());
-        }
+        } while (f->valid() == false);
+
         assert(f->valid());
 
         ss << fpga_vj << "(" << f->usage << "/" << f->capacity << ")"
@@ -325,8 +314,6 @@ void DB::partition() {
            << " and R size(poped): " << R[node_vj].size() << endl;
 
 
-        c->fpga_node = f;
-        f->add_circuit();
         v_cddt.clear();
         // the fpga node, which didn't directly connect to f
         for (auto &indirect_f : fpga.get_all_vertex()) {
@@ -348,10 +335,9 @@ void DB::partition() {
         }
 
         if (traceback) {
-            c->cddt.erase(c->fpga_node);
+            c->cddt.erase(f);
             c->flush_cddt_to_tsr();
             c->fpga_node = nullptr;
-            f->remove_circuit();
             Q.emplace(c->name);
             for (auto &neighbor : circuit.g[c->name]) {
                 if (neighbor->assigned())
@@ -360,34 +346,18 @@ void DB::partition() {
                 neighbor->tsr_cddt += v_cddt;
             }
             R[c->name].clear();
-            for (auto &cddt_fpga : c->cddt) {
-                intg cut_size_increment =
-                    estimate_cut_increment(c->name, cddt_fpga->name);
-                R[c->name].emplace(
-                    make_pair(cut_size_increment, cddt_fpga->name));
-            }
         } else {
+            c->add_fpga(f);
+            f->add_circuit();
             for (auto &neighbor : circuit.g[c->name]) {
                 if (neighbor->assigned() || neighbor->should_defer)
                     continue;
-
-                ss << "\t\t";
-                ss << neighbor->name << "'s cddt: ";
 
                 // push into Q
                 assert(*(Q.find(neighbor->name)) == neighbor->name);
                 Q.erase(neighbor->name);
 
                 neighbor->flush_tsr_to_cddt(fpga.v);
-
-                R[neighbor->name].clear();
-                for (auto &cddt_fpga : neighbor->cddt) {
-                    ss << cddt_fpga->name << ", ";
-                    intg cut_size_increment =
-                        estimate_cut_increment(neighbor->name, cddt_fpga->name);
-                    R[neighbor->name].emplace(
-                        make_pair(cut_size_increment, cddt_fpga->name));
-                }
                 ss << endl;
 
                 Q.emplace(neighbor->name);
@@ -431,20 +401,25 @@ void DB::refine() {
             while (fpga_id < fpga.num_vertex) {
                 const auto &tmp_f = fpga.get_vertex(fpga_id);
                 if (tmp_f->valid()) {
+                    c->add_fpga(tmp_f);
                     tmp_f->add_circuit();
-                    c->fpga_node = tmp_f;
                     break;
                 }
                 fpga_id++;
             }
         } else {
+            intg cut_increment = std::numeric_limits<intg>::max();
+            FPGANode *best_f = nullptr;
             for (auto &tmp_f : c->cddt) {
-                if (tmp_f->valid()) {
-                    tmp_f->add_circuit();
-                    c->fpga_node = tmp_f;
-                    break;
+                c->calculate_cut_increment(tmp_f, circuit.g_set[c->name]);
+                if (cut_increment > c->cut_increment_map[tmp_f->name]) {
+                    cut_increment = c->cut_increment_map[tmp_f->name];
+                    best_f = tmp_f;
                 }
             }
+            assert(best_f != nullptr);
+            c->add_fpga(best_f);
+            best_f->add_circuit();
         }
         // assert(c->cddt.size() > 0);
     }
@@ -466,6 +441,30 @@ void DB::output(fstream &out) {
         }
         out << c->name << " " << c->fpga_node->name << std::endl;
     }
+
+#ifdef LOG
+    intg topology_cost = 0;
+    for (auto &n : nets) {
+        topology_cost += n->cost();
+    }
+
+    intg penalty = 0;
+    for (auto &c : circuit_vertex) {
+        for (auto &neighbor : circuit.g_set[c->name]) {
+            if (fpga.g_set[c->fpga_node->name].count(
+                    fpga.get_vertex(neighbor->fpga_node->name)) <= 0 &&
+                c->fpga_node != neighbor->fpga_node)
+                penalty += 1;
+        }
+    }
+
+    cout << "=========================================================" << endl;
+    cout << "[BW] \tTopology Cost is: " << topology_cost << endl;
+    cout << "\tPenalty Cost is: " << penalty << endl;
+    cout << "\tTOTAL Cost is: " << topology_cost + penalty << endl;
+    cout << "=========================================================" << endl;
+#endif
+
     if (not_set == 0)
         return;
     cout << "=========================================================" << endl;

@@ -16,6 +16,8 @@ LIBS = db.o \
 		graph.o \
 		parse.o \
 		tensor.o \
+		node.o \
+		net.o \
 		log.o
 
 
