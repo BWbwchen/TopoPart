@@ -258,12 +258,21 @@ void DB::partition() {
         auto l_cost = cc->cut_increment_map[lhs.second];
         auto r_cost = cc->cut_increment_map[rhs.second];
 
+        intg fl_usage = fl->free_space();
+        for (auto &f_neighbor : fpga.g[fl->name]) {
+            fl_usage += f_neighbor->free_space();
+        }
+        intg fr_usage = fr->free_space();
+        for (auto &f_neighbor : fpga.g[fr->name]) {
+            fr_usage += f_neighbor->free_space();
+        }
+
         auto ll = (l_cost + fl->usage / hp);
         auto rr = (r_cost + fr->usage / hp);
         if (ll == rr) {
-            return l_cost <= r_cost;
+            return fl_usage > fr_usage;
         }
-        return (l_cost + fl->usage / hp) <= (r_cost + fr->usage / hp);
+        return ll < rr;
     };
     using RType = set<pair<intg, intg>, decltype(Rcmp)>;
 
