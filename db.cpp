@@ -456,45 +456,60 @@ void DB::refine() {
     // net.
     intg total_dec = 0;
     intg total_topo_vio = 0;
-    intg tmp_dec = std::numeric_limits<intg>::max();
-    FPGANode *refine_f = nullptr;
-    for (auto &c : circuit.get_all_vertex()) {
-        if (c->is_fixed() || c->try_move() == false)
-            continue;
+    for (int i = 0; i < 2; ++i) {
+        intg tmp_dec = std::numeric_limits<intg>::max();
+        FPGANode *refine_f = nullptr;
 
-        tmp_dec = std::numeric_limits<intg>::max();
-        refine_f = nullptr;
-        for (auto &neighbor : circuit.g_set[c->name]) {
-            auto &nf = neighbor->fpga_node;
-            if (nf == c->fpga_node || nf->valid() == false)
+        vector<CircuitNode *> re_q;
+        for (auto &c : circuit.get_all_vertex()) {
+            if (c->is_fixed() || c->try_move() == false)
+                continue;
+            re_q.emplace_back(c);
+        }
+        sort(re_q.begin(), re_q.end(),
+             [&](const CircuitNode *lhs, const CircuitNode *rhs) {
+                 return lhs->nets.size() > rhs->nets.size();
+             });
+
+        for (auto &c : re_q) {
+            if (c->is_fixed() || c->try_move() == false)
                 continue;
 
-            intg td = c->try_move(nf);
-            if (tmp_dec > td) {
-                tmp_dec = td;
-                refine_f = nf;
+            tmp_dec = std::numeric_limits<intg>::max();
+            refine_f = nullptr;
+            for (auto &neighbor : circuit.g_set[c->name]) {
+                auto &nf = neighbor->fpga_node;
+                if (nf == c->fpga_node || nf->valid() == false)
+                    continue;
+
+                intg td = c->try_move(nf);
+                if (tmp_dec > td) {
+                    tmp_dec = td;
+                    refine_f = nf;
+                }
+            }
+            if (refine_f == nullptr)
+                continue;
+
+            intg topology_violation_increase = 0;
+            for (auto &neighbor : circuit.g_set[c->name]) {
+                if (fpga.g_set[refine_f->name].count(
+                        fpga.get_vertex(neighbor->fpga_node->name)) <= 0 &&
+                    refine_f != neighbor->fpga_node)
+                    topology_violation_increase += 2;
+            }
+
+            if (tmp_dec + topology_violation_increase < 0) {
+                c->fpga_node->remove_circuit();
+                c->remove_fpga();
+                c->add_fpga(refine_f);
+                refine_f->add_circuit();
+                total_dec += tmp_dec;
+                total_topo_vio += topology_violation_increase;
             }
         }
-        if (refine_f == nullptr)
-            continue;
-
-        intg topology_violation_increase = 0;
-        for (auto &neighbor : circuit.g_set[c->name]) {
-            if (fpga.g_set[refine_f->name].count(
-                    fpga.get_vertex(neighbor->fpga_node->name)) <= 0 &&
-                refine_f != neighbor->fpga_node)
-                topology_violation_increase += 2;
-        }
-
-        if (tmp_dec + topology_violation_increase < 0) {
-            c->fpga_node->remove_circuit();
-            c->remove_fpga();
-            c->add_fpga(refine_f);
-            refine_f->add_circuit();
-            total_dec += tmp_dec;
-            total_topo_vio += topology_violation_increase;
-        }
     }
+
     cout << "[BW] dec: " << total_dec << endl;
     cout << "[BW] topo vio: " << total_topo_vio << endl;
     output_loss();
