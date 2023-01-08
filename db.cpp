@@ -225,10 +225,17 @@ void DB::partition() {
         if (lhs == rhs)
             return false;
 
-        intg lcs = circuit.get_vertex(lhs)->cddt.size();
-        intg rcs = circuit.get_vertex(rhs)->cddt.size();
+        intg lg = circuit.g_set[lhs].size();
+        intg rg = circuit.g_set[rhs].size();
+
+        intg lcs = circuit.get_vertex(lhs)->cddt.size() + lg;
+        intg rcs = circuit.get_vertex(rhs)->cddt.size() + rg;
+
         if (lcs == rcs) {
-            return lhs < rhs;
+            if (lg == rg) {
+                return lhs < rhs;
+            }
+            return lg < rg;
         }
 
         return lcs < rcs;
