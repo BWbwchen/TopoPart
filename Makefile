@@ -28,7 +28,7 @@ TESTCASE_DIR = ./input
 OUTPUT_DIR = /dev/shm
 VERIFY_DIR = ./verifier
 
-.PHONY: test clean
+.PHONY: test clean upload
 
 CASE = 1
 
@@ -58,32 +58,38 @@ benchmark: packing_gz
 	cp CS6135_HW4_111062506.tar.gz ../HW4_grading/student/111062506/
 	cd ../HW4_grading && bash HW4_grading.sh
 
-upload: packing_gz
-	ssh g111062506@ic 'rm -rf ~/hw4/HW4_grading'
-	scp ../HW4_grading.tar.gz g111062506@ic:~/hw4/
-	ssh g111062506@ic 'cd hw4/ && tar -zxvf HW4_grading.tar.gz && mkdir HW4_grading/student/111062506'
-	scp CS6135_HW4_111062506.tar.gz g111062506@ic:~/hw4/HW4_grading/student/111062506/
+upload:
+	-rm -rf upload
+	mkdir -p upload
+	cp *.cpp upload
+	cp *.h upload
+	cp Makefile upload
+	cp -r input/ upload
+	cp verify upload
+	ssh -p 10022 fpga-111062506@maklab.cs.nthu.edu.tw 'rm -rf ~/upload'
+	scp -P10022 -r upload fpga-111062506@maklab.cs.nthu.edu.tw:~/
+	-rm -rf upload
 
-submit: testall packing_gz benchmark
-	echo "finish"
+# submit: testall packing_gz benchmark
+# 	echo "finish"
 
-packing_gz: 
-	rm -rf HW4 CS6135_HW4_111062506.tar.gz
-	mkdir -p HW4/src
-	cp *.cpp HW4/src/
-	cp *.h HW4/src/
-	cp Makefile HW4/src/
-	cp README HW4/src/
-	mkdir -p HW4/output
-	mkdir -p HW4/bin
-	cp ../bin/hw4 HW4/bin/hw4
-	# cp ../vlsi-hw4.pdf HW4/CS6135_HW4_111062506_report.pdf
-	echo "below is unneccesary"
-	cp -r ../testcase HW4/
-	cp -r ../verifier HW4/
-	tar -zcvf CS6135_HW4_111062506.tar.gz HW4/
-	cp CS6135_HW4_111062506.tar.gz ../
-	-rm -rf HW4
+# packing_gz:
+# 	rm -rf HW4 CS6135_HW4_111062506.tar.gz
+# 	mkdir -p HW4/src
+# 	cp *.cpp HW4/src/
+# 	cp *.h HW4/src/
+# 	cp Makefile HW4/src/
+# 	cp README HW4/src/
+# 	mkdir -p HW4/output
+# 	mkdir -p HW4/bin
+# 	cp ../bin/hw4 HW4/bin/hw4
+# 	# cp ../vlsi-hw4.pdf HW4/CS6135_HW4_111062506_report.pdf
+# 	echo "below is unneccesary"
+# 	cp -r ../testcase HW4/
+# 	cp -r ../verifier HW4/
+# 	tar -zcvf CS6135_HW4_111062506.tar.gz HW4/
+# 	cp CS6135_HW4_111062506.tar.gz ../
+# 	-rm -rf HW4
 
 # send_cases:
 # 	scp -r testcases g111062506@ic:~/hw2
