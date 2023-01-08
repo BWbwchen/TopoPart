@@ -486,8 +486,9 @@ void DB::refine() {
         cout << "[BW] Refine " << need_refine << "/" << circuit.num_vertex
              << " circuit nodes. with force assigned: " << force_assign << endl;
 
-
+#ifdef LOG
     output_loss();
+#endif
 
     // Refine with move-based. We try to move the boundary node, which is the
     // node that in the FPGA node that different with other node in the same
@@ -565,7 +566,10 @@ void DB::refine() {
 
     cout << "[BW] dec: " << total_dec << endl;
     cout << "[BW] topo vio: " << total_topo_vio << endl;
+
+#ifdef LOG
     output_loss();
+#endif
 }
 
 void DB::output_loss() {
