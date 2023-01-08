@@ -31,6 +31,8 @@ public:
     void output_loss();
     intg topo_vio(FPGANode *f, intg c);
 
+    void try_legalize(intg threshold);
+
 public:
     DB() {}
 

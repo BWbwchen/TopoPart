@@ -19,6 +19,7 @@ using std::cout;
 using std::endl;
 using std::fstream;
 using std::make_pair;
+using std::min;
 using std::pair;
 using std::queue;
 
@@ -403,6 +404,31 @@ intg DB::topo_vio(FPGANode *f, intg c) {
     return vio;
 }
 
+void DB::try_legalize(intg threshold) {
+    for (auto &c : circuit.get_all_vertex()) {
+        if (c->is_fixed() || c->try_move() == false)
+            continue;
+
+        intg vio = 0;
+        vio = topo_vio(c->fpga_node, c->name);
+        if (vio == 0)
+            continue;
+
+        for (auto &neighbor : circuit.g[c->name]) {
+            auto &nf = neighbor->fpga_node;
+            if (nf == c->fpga_node || nf->valid() == false)
+                continue;
+
+            if (topo_vio(nf, c->name) <= threshold) {
+                c->fpga_node->remove_circuit();
+                c->remove_fpga();
+                c->add_fpga(nf);
+                nf->add_circuit();
+            }
+        }
+    }
+}
+
 void DB::refine() {
     cout << "Start refine." << endl;
     // make the un-assigned node assigned
@@ -462,12 +488,18 @@ void DB::refine() {
 
 
     output_loss();
+
     // Refine with move-based. We try to move the boundary node, which is the
     // node that in the FPGA node that different with other node in the same
     // net.
     intg total_dec = 0;
     intg total_topo_vio = 0;
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 5; ++i) {
+        // Legalize
+        try_legalize(1);
+        try_legalize(0);
+
+        // Opt
         intg tmp_dec = std::numeric_limits<intg>::max();
         FPGANode *refine_f = nullptr;
 
@@ -479,7 +511,14 @@ void DB::refine() {
         }
         sort(re_q.begin(), re_q.end(),
              [&](const CircuitNode *lhs, const CircuitNode *rhs) {
-                 return lhs->nets.size() < rhs->nets.size();
+                 const auto &lns = lhs->nets.size();
+                 const auto &rns = rhs->nets.size();
+                 const auto &lgs = circuit.g_set[lhs->name].size();
+                 const auto &rgs = circuit.g_set[rhs->name].size();
+                 if (lns == rns) {
+                     return lgs < rgs;
+                 }
+                 return lns < rns;
              });
 
         for (auto &c : re_q) {
@@ -488,7 +527,7 @@ void DB::refine() {
 
             tmp_dec = std::numeric_limits<intg>::max();
             refine_f = nullptr;
-            for (auto &neighbor : circuit.g_set[c->name]) {
+            for (auto &neighbor : circuit.g[c->name]) {
                 auto &nf = neighbor->fpga_node;
                 if (nf == c->fpga_node || nf->valid() == false)
                     continue;
@@ -497,12 +536,19 @@ void DB::refine() {
                 if (tmp_dec > td) {
                     tmp_dec = td;
                     refine_f = nf;
+                } else if (tmp_dec == td && refine_f != nullptr) {
+                    if (fpga.g_set[nf->name].size() <
+                        fpga.g_set[refine_f->name].size()) {
+                        tmp_dec = td;
+                        refine_f = nf;
+                    }
                 }
             }
             if (refine_f == nullptr)
                 continue;
 
-            intg topology_violation_increase = 3 * topo_vio(refine_f, c->name);
+            intg topology_violation_increase =
+                2.5f * (double) topo_vio(refine_f, c->name);
 
             if (tmp_dec + topology_violation_increase <= 0) {
                 c->fpga_node->remove_circuit();
@@ -514,6 +560,8 @@ void DB::refine() {
             }
         }
     }
+
+    try_legalize(0);
 
     cout << "[BW] dec: " << total_dec << endl;
     cout << "[BW] topo vio: " << total_topo_vio << endl;
