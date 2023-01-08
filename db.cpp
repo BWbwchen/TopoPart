@@ -392,6 +392,17 @@ void DB::partition() {
     }
 }
 
+intg DB::topo_vio(FPGANode *f, intg c) {
+    intg vio = 0;
+    for (auto &neighbor : circuit.g_set[c]) {
+        if (fpga.g_set[f->name].count(
+                fpga.get_vertex(neighbor->fpga_node->name)) <= 0 &&
+            f != neighbor->fpga_node)
+            vio += 1;
+    }
+    return vio;
+}
+
 void DB::refine() {
     cout << "Start refine." << endl;
     // make the un-assigned node assigned
@@ -456,7 +467,7 @@ void DB::refine() {
     // net.
     intg total_dec = 0;
     intg total_topo_vio = 0;
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < 3; ++i) {
         intg tmp_dec = std::numeric_limits<intg>::max();
         FPGANode *refine_f = nullptr;
 
@@ -468,7 +479,7 @@ void DB::refine() {
         }
         sort(re_q.begin(), re_q.end(),
              [&](const CircuitNode *lhs, const CircuitNode *rhs) {
-                 return lhs->nets.size() > rhs->nets.size();
+                 return lhs->nets.size() < rhs->nets.size();
              });
 
         for (auto &c : re_q) {
@@ -491,15 +502,9 @@ void DB::refine() {
             if (refine_f == nullptr)
                 continue;
 
-            intg topology_violation_increase = 0;
-            for (auto &neighbor : circuit.g_set[c->name]) {
-                if (fpga.g_set[refine_f->name].count(
-                        fpga.get_vertex(neighbor->fpga_node->name)) <= 0 &&
-                    refine_f != neighbor->fpga_node)
-                    topology_violation_increase += 2;
-            }
+            intg topology_violation_increase = 3 * topo_vio(refine_f, c->name);
 
-            if (tmp_dec + topology_violation_increase < 0) {
+            if (tmp_dec + topology_violation_increase <= 0) {
                 c->fpga_node->remove_circuit();
                 c->remove_fpga();
                 c->add_fpga(refine_f);

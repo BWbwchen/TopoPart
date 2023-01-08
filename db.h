@@ -29,6 +29,7 @@ public:
 
     void calculate_fpga_neighbor_free_space(intg fpga_id);
     void output_loss();
+    intg topo_vio(FPGANode *f, intg c);
 
 public:
     DB() {}
