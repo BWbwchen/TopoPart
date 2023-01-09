@@ -472,8 +472,10 @@ void DB::refine() {
             FPGANode *best_f = nullptr;
             for (auto &tmp_f : c->cddt) {
                 c->calculate_cut_increment(tmp_f, circuit.g_set[c->name]);
-                if (cut_increment > c->cut_increment_map[tmp_f->name]) {
-                    cut_increment = c->cut_increment_map[tmp_f->name];
+                intg vio = topo_vio(tmp_f, c->name);
+                intg tmp = c->cut_increment_map[tmp_f->name] + 2.5f * (fp) vio;
+                if (cut_increment > tmp) {
+                    cut_increment = tmp;
                     best_f = tmp_f;
                 }
             }
