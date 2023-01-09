@@ -249,7 +249,7 @@ void DB::partition() {
     intg capacity_digit = log10(fpga.get_vertex(0)->capacity) + 1;
     intg threshold = 2;
     if (capacity_digit <= threshold) {
-        hp = 1;
+        hp = 5;
     } else {
         hp = 2 * (intg) pow(10, capacity_digit - threshold);
     }
