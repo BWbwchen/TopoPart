@@ -396,6 +396,10 @@ void DB::partition() {
 intg DB::topo_vio(FPGANode *f, intg c) {
     intg vio = 0;
     for (auto &neighbor : circuit.g_set[c]) {
+        if (neighbor->fpga_node == nullptr) {
+            vio += 1;
+            continue;
+        }
         if (fpga.g_set[f->name].count(
                 fpga.get_vertex(neighbor->fpga_node->name)) <= 0 &&
             f != neighbor->fpga_node)
