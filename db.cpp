@@ -488,6 +488,11 @@ void DB::refine() {
         // assert(c->cddt.size() > 0);
     }
 
+    timer.output_time("FINISH basic refinement");
+    if (timer.timeout()) {
+        return;
+    }
+
     if (need_refine)
         cout << "[BW] Refine " << need_refine << "/" << circuit.num_vertex
              << " circuit nodes. with force assigned: " << force_assign << endl;
@@ -502,6 +507,8 @@ void DB::refine() {
     intg total_dec = 0;
     intg total_topo_vio = 0;
     for (int i = 0; i < 5; ++i) {
+        if (timer.timeout())
+            break;
         // Legalize
         try_legalize(1);
         try_legalize(0);
@@ -567,6 +574,8 @@ void DB::refine() {
             }
         }
     }
+    if (timer.timeout())
+        return;
 
     try_legalize(0);
 

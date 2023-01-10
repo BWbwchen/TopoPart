@@ -26,10 +26,14 @@ int main(int argc, char *argv[]) {
 
     topart::DB db;
     topart::parse_input(db, input);
+    db.timer.output_time("FINISH Parsing");
 
     db.calculate_candidate_fpga();
     db.partition();
+    db.timer.output_time("FINISH Preprocessing");
+
     db.refine();
+    db.timer.output_time("ALL FINISH");
     db.output(output);
 
     input.close();

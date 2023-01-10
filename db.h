@@ -10,6 +10,7 @@
 
 #include "graph.h"
 #include "node.h"
+#include "timer.h"
 
 namespace topart {
 
@@ -22,6 +23,8 @@ public:
     Graph<CircuitNode> circuit;
     vector<Net *> nets;
     vector<intg> fpga_neighbor_free_space;
+
+    Timer timer;
 
     // topart procedure - algorithm 1
     void cal_circuit_candidate(
@@ -38,7 +41,7 @@ public:
     void try_legalize(intg threshold);
 
 public:
-    DB() {}
+    DB() { timer.set_start(); }
 
     // Build DB
     void build_fpga_graph(intg num_vertex,
