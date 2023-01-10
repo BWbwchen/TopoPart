@@ -9,6 +9,8 @@ Partitioning Framework for Multi-FPGA
 Systems](https://ieeexplore.ieee.org/document/9643481) and also my final project
 for class CS516000 FPGA Architecture & CAD at NTHU.
 
+Don't forget to check my report [here](https://drive.google.com/file/d/11EmG7Hx1afaDhlwSjeb_9S0UCgz83t59/view?usp=share_link)!
+
 ## Benchmark
 I test my program in private benchmark, and the input is in [./input](./input) directory.
 
