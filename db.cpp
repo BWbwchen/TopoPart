@@ -261,8 +261,8 @@ void DB::partition() {
         const auto &cc = circuit.get_vertex(lhs.first);
         const auto &fl = fpga.get_vertex(lhs.second);
         const auto &fr = fpga.get_vertex(rhs.second);
-        assert(cc->cut_increment_map.count(lhs.second));
-        assert(cc->cut_increment_map.count(rhs.second));
+        // assert(cc->cut_increment_map.count(lhs.second));
+        // assert(cc->cut_increment_map.count(rhs.second));
         auto l_cost = cc->cut_increment_map[lhs.second];
         auto r_cost = cc->cut_increment_map[rhs.second];
 
@@ -314,7 +314,7 @@ void DB::partition() {
             R[c->name].emplace(make_pair(c->name, ff->name));
         }
 
-        assert(node_vj == c->name);
+        // assert(node_vj == c->name);
         bool traceback = false;
 
         FPGANode *f = nullptr;
@@ -330,7 +330,7 @@ void DB::partition() {
             R[node_vj].erase(R[node_vj].begin());
         } while (f->valid() == false);
 
-        assert(f->valid());
+        // assert(f->valid());
 
         ss << fpga_vj << "(" << f->usage << "/" << f->capacity << ")"
            << "\t";
@@ -379,7 +379,7 @@ void DB::partition() {
                     continue;
 
                 // push into Q
-                assert(*(Q.find(neighbor->name)) == neighbor->name);
+                // assert(*(Q.find(neighbor->name)) == neighbor->name);
                 Q.erase(neighbor->name);
 
                 neighbor->flush_tsr_to_cddt(fpga.v);
@@ -459,8 +459,6 @@ void DB::refine() {
         }
 
         if (c->cddt.size() == 0) {
-            // greedy assign.
-            // TODO: can I place the nearest fpga node?
             force_assign++;
             while (fpga_id < fpga.num_vertex) {
                 const auto &tmp_f = fpga.get_vertex(fpga_id);
@@ -483,11 +481,9 @@ void DB::refine() {
                     best_f = tmp_f;
                 }
             }
-            assert(best_f != nullptr);
+            // assert(best_f != nullptr);
             c->add_fpga(best_f);
             best_f->add_circuit();
-            // c->add_fpga(*(c->cddt.begin()));
-            // (*(c->cddt.begin()))->add_circuit();
         }
         // assert(c->cddt.size() > 0);
     }

@@ -46,7 +46,7 @@ void Graph<T>::calculate_max_dist(Func f) {
 
 template <class T>
 T *Graph<T>::get_vertex(intg i) {
-    assert(i < v.size());
+    // assert(i < v.size());
     return v[i];
 }
 

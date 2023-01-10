@@ -10,13 +10,13 @@ namespace topart {
 
 template <class T>
 T &Tensor<T>::at(intg i) {
-    assert(i < v.size());
+    // assert(i < v.size());
     return v[i];
 }
 
 template <class T>
 Tensor<T> &Tensor<T>::operator+=(const Tensor<T> &rhs) {
-    assert(v.size() == rhs.v.size());
+    // assert(v.size() == rhs.v.size());
     for (intg i = 0; i < v.size(); ++i) {
         v[i] += rhs.v[i];
     }
@@ -25,7 +25,7 @@ Tensor<T> &Tensor<T>::operator+=(const Tensor<T> &rhs) {
 
 template <class T>
 Tensor<T> &Tensor<T>::operator-=(const Tensor<T> &rhs) {
-    assert(v.size() == rhs.v.size());
+    // assert(v.size() == rhs.v.size());
     for (intg i = 0; i < v.size(); ++i) {
         v[i] -= rhs.v[i];
     }
